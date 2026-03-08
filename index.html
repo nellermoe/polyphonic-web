@@ -14,49 +14,79 @@
       background: #f5f5f5;
     }
 
-    /* 3D perspective tilt - tilted back with slight rotation */
+    /* 3D perspective tilt */
     .map-tilt {
       width: 100%;
       height: 100%;
       position: absolute;
       top: 0;
       left: 0;
-      perspective: 900px;
+      perspective: 350px;
+      overflow: hidden;
     }
     #map {
-      width: 140%;
-      height: 140%;
+      /* Massively oversized so edges never show when tilted */
+      width: 300%;
+      height: 300%;
       position: absolute;
-      top: -20%;
-      left: -20%;
-      transform: rotateX(45deg) rotateZ(20deg);
+      top: -100%;
+      left: -100%;
+      transform: rotateX(60deg) rotateY(-5deg) rotateZ(21deg);
       transform-origin: center center;
     }
 
-    /* Polyphonic logo marker */
+    /* Depth-of-field blur at edges */
+    .map-tilt::after {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      z-index: 500;
+      pointer-events: none;
+      background:
+        radial-gradient(ellipse at center, transparent 30%, rgba(245,245,245,0.6) 70%, rgba(245,245,245,1) 100%);
+    }
+
+    /* 3D pin marker - stands upright off the tilted surface */
     .polyphonic-marker {
       background: none;
       border: none;
     }
-    .polyphonic-marker .marker-wrapper {
-      width: 40px;
-      height: 40px;
+    .polyphonic-marker .marker-pin {
       display: flex;
+      flex-direction: column;
       align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+      /* Counter-rotate to face the viewer in 3D space */
+      transform: rotateZ(-21deg) rotateY(6deg) rotateX(-60deg) translateZ(40px);
+      transform-origin: bottom center;
+      filter: drop-shadow(0 8px 12px rgba(0,0,0,0.5));
       transition: transform 0.2s ease;
     }
-    .polyphonic-marker:hover .marker-wrapper {
-      transform: scale(1.15);
+    .polyphonic-marker:hover .marker-pin {
+      transform: rotateZ(-21deg) rotateY(6deg) rotateX(-60deg) translateZ(55px);
     }
-    .polyphonic-marker .marker-wrapper img {
-      width: 32px;
-      height: 32px;
+    .polyphonic-marker .marker-pin img {
+      width: 44px;
+      height: 44px;
+    }
+    /* Pin stem */
+    .polyphonic-marker .pin-stem {
+      width: 2px;
+      height: 18px;
+      background: #222;
+      border-radius: 1px;
+      margin-top: -2px;
+    }
+    /* Pin shadow on map surface */
+    .polyphonic-marker .pin-shadow {
+      width: 16px;
+      height: 6px;
+      background: rgba(0,0,0,0.25);
+      border-radius: 50%;
+      margin-top: 2px;
+      filter: blur(2px);
     }
 
-    /* Popup card styling - matching AtList */
+    /* Popup card styling */
     .leaflet-popup-content-wrapper {
       border-radius: 8px;
       box-shadow: 0 2px 12px rgba(0,0,0,0.18);
@@ -96,13 +126,17 @@
       line-height: 1.4;
     }
 
-    /* Hide default close button styling override */
     .leaflet-popup-close-button {
       color: #fff !important;
       font-size: 18px !important;
       padding: 4px 8px !important;
       text-shadow: 0 1px 3px rgba(0,0,0,0.4);
     }
+
+    /* Hide zoom controls - they look odd on a tilted map */
+    .leaflet-control-zoom { display: none; }
+    /* Hide attribution on tilted view */
+    .leaflet-control-attribution { display: none; }
   </style>
 </head>
 <body>
@@ -124,58 +158,49 @@
     const MAP_STYLE = "toner";
 
     const MAP_STYLES = {
-      // 1. Default - colorful with green land & blue water (like AtList selected)
       default: {
         url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+        attribution: '&copy; OpenStreetMap',
         options: { maxZoom: 19 }
       },
-      // 2. Light - very faint roads on white background
       light: {
         url: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>',
+        attribution: '&copy; OpenStreetMap &copy; CARTO',
         options: { maxZoom: 20, subdomains: 'abcd' }
       },
-      // 3. Minimal - clean with subtle labels (Voyager)
       minimal: {
         url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>',
+        attribution: '&copy; OpenStreetMap &copy; CARTO',
         options: { maxZoom: 20, subdomains: 'abcd' }
       },
-      // 4. Grayscale - dark gray tones, no color
       grayscale: {
         url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>',
+        attribution: '&copy; OpenStreetMap &copy; CARTO',
         options: { maxZoom: 20, subdomains: 'abcd' }
       },
-      // 5. Muted - light gray, no labels, very clean
       muted: {
         url: 'https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png',
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>',
+        attribution: '&copy; OpenStreetMap &copy; CARTO',
         options: { maxZoom: 20, subdomains: 'abcd' }
       },
-      // 6. Warm - soft beige/tan tones
       warm: {
         url: 'https://tiles.stadiamaps.com/tiles/stamen_terrain/{z}/{x}/{y}{r}.png',
-        attribution: '&copy; <a href="https://stadiamaps.com/">Stadia</a> &copy; <a href="https://stamen.com/">Stamen</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+        attribution: '&copy; Stadia &copy; Stamen &copy; OpenStreetMap',
         options: { maxZoom: 18 }
       },
-      // 7. Watercolor - artistic painted look
       watercolor: {
         url: 'https://tiles.stadiamaps.com/tiles/stamen_watercolor/{z}/{x}/{y}.jpg',
-        attribution: '&copy; <a href="https://stadiamaps.com/">Stadia</a> &copy; <a href="https://stamen.com/">Stamen</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+        attribution: '&copy; Stadia &copy; Stamen &copy; OpenStreetMap',
         options: { maxZoom: 16 }
       },
-      // 8. Toner - high-contrast black & white (Stamen Toner)
       toner: {
         url: 'https://tiles.stadiamaps.com/tiles/stamen_toner/{z}/{x}/{y}{r}.png',
-        attribution: '&copy; <a href="https://stadiamaps.com/">Stadia</a> &copy; <a href="https://stamen.com/">Stamen</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+        attribution: '&copy; Stadia &copy; Stamen &copy; OpenStreetMap',
         options: { maxZoom: 20 }
       },
-      // 9. Teal - blue/green water-focused
       teal: {
         url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>',
+        attribution: '&copy; OpenStreetMap &copy; CARTO',
         options: { maxZoom: 20, subdomains: 'abcd' },
         css: 'filter: hue-rotate(160deg) saturate(1.4);'
       }
@@ -189,14 +214,6 @@
         image: "https://static.wixstatic.com/media/9ce945_0353965da9e04fa7817530546ce86ddc~mv2.png",
         address: "600 Harvey Milk Blvd, Salt Lake City, UT 84105, USA"
       }
-      // Add more locations as your studio rolls out:
-      // {
-      //   name: "Next Location",
-      //   lat: 0.0,
-      //   lng: 0.0,
-      //   image: "https://...",
-      //   address: "123 Main St, City, State ZIP"
-      // }
     ];
 
     // ============================================================
@@ -209,9 +226,10 @@
 
     const map = L.map('map', {
       center: center,
-      zoom: 16,
-      zoomControl: true,
-      scrollWheelZoom: true
+      zoom: 17,
+      zoomControl: false,
+      scrollWheelZoom: true,
+      attributionControl: false
     });
 
     // Apply selected map style
@@ -221,21 +239,24 @@
       ...style.options
     }).addTo(map);
 
-    // Apply CSS filter if the style has one (e.g. teal)
     if (style.css) {
       document.querySelector('.leaflet-tile-pane').style.cssText = style.css;
     }
 
-    // Polyphonic logo as map marker
+    // 3D pin marker - logo stands upright off the tilted surface
     const logoIcon = L.divIcon({
       className: 'polyphonic-marker',
-      html: `<div class="marker-wrapper"><img src="${LOGO_ICON_URL}" alt="Polyphonic" /></div>`,
-      iconSize: [40, 40],
-      iconAnchor: [20, 20],
-      popupAnchor: [0, -24]
+      html: `<div class="marker-pin">
+        <img src="${LOGO_ICON_URL}" alt="Polyphonic" />
+        <div class="pin-stem"></div>
+        <div class="pin-shadow"></div>
+      </div>`,
+      iconSize: [44, 70],
+      iconAnchor: [22, 70],
+      popupAnchor: [0, -74]
     });
 
-    // Add markers for each location
+    // Add markers
     locations.forEach(loc => {
       const imageHtml = loc.image
         ? `<img class="popup-image" src="${loc.image}" alt="${loc.name}" />`
@@ -256,7 +277,6 @@
         .bindPopup(popupContent, { maxWidth: 280, closeButton: true });
     });
 
-    // If multiple locations, fit bounds to show all
     if (locations.length > 1) {
       const bounds = L.latLngBounds(locations.map(l => [l.lat, l.lng]));
       map.fitBounds(bounds, { padding: [50, 50] });
