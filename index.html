@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Polyphonic Locations</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Helvetica Neue', Arial, sans-serif; }
+    #map { width: 100%; height: 100vh; }
+
+    /* Logo overlay - top left */
+    .logo-overlay {
+      position: absolute;
+      top: 12px;
+      left: 56px;
+      z-index: 1000;
+      background: rgba(255, 255, 255, 0.92);
+      border-radius: 8px;
+      padding: 8px 14px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    }
+    .logo-overlay img {
+      height: 36px;
+      display: block;
+    }
+
+    /* Custom popup styling */
+    .location-popup {
+      text-align: center;
+      min-width: 180px;
+    }
+    .location-popup img {
+      width: 100%;
+      max-width: 200px;
+      height: auto;
+      border-radius: 6px;
+      margin-bottom: 8px;
+    }
+    .location-popup h3 {
+      margin: 0 0 4px 0;
+      font-size: 15px;
+      color: #1a1a1a;
+    }
+    .location-popup p {
+      margin: 0;
+      font-size: 12px;
+      color: #666;
+    }
+
+    /* Leaflet popup overrides */
+    .leaflet-popup-content-wrapper {
+      border-radius: 10px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+    }
+    .leaflet-popup-content {
+      margin: 12px 14px;
+    }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+
+  <!-- LOGO: Replace src with your publicly hosted Polyphonic logo URL -->
+  <div class="logo-overlay">
+    <img src="https://static.wixstatic.com/shapes/9ce945_f31f554067034f6ab6211ecad57affbb.svg" alt="Polyphonic" onerror="this.parentElement.innerHTML='<strong style=font-size:18px;color:#333>Polyphonic</strong>'" />
+  </div>
+
+  <script>
+    // ============================================================
+    // CONFIGURATION - Edit this array to add/remove locations
+    // ============================================================
+    const locations = [
+      {
+        name: "Liberty Park",
+        lat: 40.74948113077829,
+        lng: -111.875514818678,
+        // Replace with a publicly hosted image URL for this location
+        image: "https://static.wixstatic.com/media/9ce945_0353965da9e04fa7817530546ce86ddc~mv2.png",
+        description: "Salt Lake City, UT"
+      }
+      // Add more locations as your studio rolls out:
+      // {
+      //   name: "Next Location",
+      //   lat: 0.0,
+      //   lng: 0.0,
+      //   image: "https://...",
+      //   description: "City, State"
+      // }
+    ];
+
+    // ============================================================
+    // MAP SETUP
+    // ============================================================
+
+    // Center on first location, or default to SLC
+    const center = locations.length > 0
+      ? [locations[0].lat, locations[0].lng]
+      : [40.7608, -111.891];
+
+    const map = L.map('map', {
+      center: center,
+      zoom: 14,
+      zoomControl: true,
+      scrollWheelZoom: true
+    });
+
+    // OpenStreetMap tiles (100% free, no API key)
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+      maxZoom: 19
+    }).addTo(map);
+
+    // Custom marker icon (warm accent color)
+    const markerIcon = L.divIcon({
+      className: 'custom-marker',
+      html: `<svg width="32" height="44" viewBox="0 0 32 44" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M16 0C7.164 0 0 7.164 0 16c0 12 16 28 16 28s16-16 16-28C32 7.164 24.836 0 16 0z" fill="#E74C3C"/>
+        <circle cx="16" cy="16" r="8" fill="white"/>
+        <circle cx="16" cy="16" r="5" fill="#E74C3C"/>
+      </svg>`,
+      iconSize: [32, 44],
+      iconAnchor: [16, 44],
+      popupAnchor: [0, -44]
+    });
+
+    // Add markers for each location
+    locations.forEach(loc => {
+      const imageHtml = loc.image && !loc.image.includes('YOUR_')
+        ? `<img src="${loc.image}" alt="${loc.name}" />`
+        : '';
+
+      const popupContent = `
+        <div class="location-popup">
+          ${imageHtml}
+          <h3>${loc.name}</h3>
+          <p>${loc.description}</p>
+        </div>
+      `;
+
+      L.marker([loc.lat, loc.lng], { icon: markerIcon })
+        .addTo(map)
+        .bindPopup(popupContent, { maxWidth: 220 });
+    });
+
+    // If multiple locations, fit bounds to show all
+    if (locations.length > 1) {
+      const bounds = L.latLngBounds(locations.map(l => [l.lat, l.lng]));
+      map.fitBounds(bounds, { padding: [50, 50] });
+    }
+  </script>
+</body>
+</html>
