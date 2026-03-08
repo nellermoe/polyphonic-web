@@ -21,32 +21,20 @@
       position: absolute;
       top: 0;
       left: 0;
-      perspective: 350px;
+      perspective: 900px;
       overflow: hidden;
     }
     #map {
-      /* Massively oversized so edges never show when tilted */
-      width: 300%;
-      height: 300%;
+      width: 400%;
+      height: 400%;
       position: absolute;
-      top: -100%;
-      left: -100%;
-      transform: rotateX(60deg) rotateY(-5deg) rotateZ(21deg);
+      top: -150%;
+      left: -150%;
+      transform: rotateX(45deg) rotateZ(20deg);
       transform-origin: center center;
     }
 
-    /* Depth-of-field blur at edges */
-    .map-tilt::after {
-      content: '';
-      position: absolute;
-      top: 0; left: 0; right: 0; bottom: 0;
-      z-index: 500;
-      pointer-events: none;
-      background:
-        radial-gradient(ellipse at center, transparent 30%, rgba(245,245,245,0.6) 70%, rgba(245,245,245,1) 100%);
-    }
-
-    /* 3D pin marker - stands upright off the tilted surface */
+    /* 3D pin marker - faces the viewer */
     .polyphonic-marker {
       background: none;
       border: none;
@@ -55,18 +43,18 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      /* Counter-rotate to face the viewer in 3D space */
-      transform: rotateZ(-21deg) rotateY(6deg) rotateX(-60deg) translateZ(40px);
+      /* Counter-rotate so logo faces viewer upright */
+      transform: rotateZ(-20deg) rotateX(-45deg) translateY(-30px);
       transform-origin: bottom center;
-      filter: drop-shadow(0 8px 12px rgba(0,0,0,0.5));
+      filter: drop-shadow(0 6px 16px rgba(0,0,0,0.7)) drop-shadow(0 2px 4px rgba(0,0,0,0.4));
       transition: transform 0.2s ease;
     }
     .polyphonic-marker:hover .marker-pin {
-      transform: rotateZ(-21deg) rotateY(6deg) rotateX(-60deg) translateZ(55px);
+      transform: rotateZ(-20deg) rotateX(-45deg) translateY(-38px);
     }
     .polyphonic-marker .marker-pin img {
-      width: 44px;
-      height: 44px;
+      width: 56px;
+      height: 56px;
     }
     /* Pin stem */
     .polyphonic-marker .pin-stem {
@@ -251,9 +239,9 @@
         <div class="pin-stem"></div>
         <div class="pin-shadow"></div>
       </div>`,
-      iconSize: [44, 70],
-      iconAnchor: [22, 70],
-      popupAnchor: [0, -74]
+      iconSize: [56, 80],
+      iconAnchor: [28, 80],
+      popupAnchor: [0, -84]
     });
 
     // Add markers
