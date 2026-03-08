@@ -8,78 +8,178 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Helvetica Neue', Arial, sans-serif; }
-    #map { width: 100%; height: 100vh; }
-
-    /* Logo overlay - top left */
-    .logo-overlay {
-      position: absolute;
-      top: 12px;
-      left: 56px;
-      z-index: 1000;
-      background: rgba(255, 255, 255, 0.92);
-      border-radius: 8px;
-      padding: 8px 14px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    body {
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      overflow: hidden;
+      background: #f5f5f5;
     }
-    .logo-overlay img {
-      height: 36px;
+
+    /* Dutch angle container */
+    .map-tilt {
+      width: 130%;
+      height: 130%;
+      position: absolute;
+      top: -15%;
+      left: -15%;
+      transform: rotate(-5deg);
+    }
+    #map { width: 100%; height: 100%; }
+
+    /* Polyphonic logo marker */
+    .polyphonic-marker {
+      background: none;
+      border: none;
+    }
+    .polyphonic-marker .marker-wrapper {
+      width: 40px;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+      transition: transform 0.2s ease;
+    }
+    .polyphonic-marker:hover .marker-wrapper {
+      transform: scale(1.15);
+    }
+    .polyphonic-marker .marker-wrapper img {
+      width: 32px;
+      height: 32px;
+    }
+
+    /* Popup card styling - matching AtList */
+    .leaflet-popup-content-wrapper {
+      border-radius: 8px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.18);
+      padding: 0;
+      overflow: hidden;
+    }
+    .leaflet-popup-content {
+      margin: 0;
+      min-width: 240px;
+    }
+    .leaflet-popup-tip {
+      box-shadow: 0 2px 12px rgba(0,0,0,0.18);
+    }
+
+    .location-popup {
+      text-align: left;
+    }
+    .location-popup .popup-image {
+      width: 100%;
+      height: 140px;
+      object-fit: cover;
       display: block;
     }
-
-    /* Custom popup styling */
-    .location-popup {
-      text-align: center;
-      min-width: 180px;
-    }
-    .location-popup img {
-      width: 100%;
-      max-width: 200px;
-      height: auto;
-      border-radius: 6px;
-      margin-bottom: 8px;
+    .location-popup .popup-info {
+      padding: 12px 14px;
     }
     .location-popup h3 {
       margin: 0 0 4px 0;
-      font-size: 15px;
+      font-size: 14px;
+      font-weight: 600;
       color: #1a1a1a;
     }
     .location-popup p {
       margin: 0;
       font-size: 12px;
       color: #666;
+      line-height: 1.4;
     }
 
-    /* Leaflet popup overrides */
-    .leaflet-popup-content-wrapper {
-      border-radius: 10px;
-      box-shadow: 0 4px 16px rgba(0,0,0,0.2);
-    }
-    .leaflet-popup-content {
-      margin: 12px 14px;
+    /* Hide default close button styling override */
+    .leaflet-popup-close-button {
+      color: #fff !important;
+      font-size: 18px !important;
+      padding: 4px 8px !important;
+      text-shadow: 0 1px 3px rgba(0,0,0,0.4);
     }
   </style>
 </head>
 <body>
-  <div id="map"></div>
-
-  <!-- LOGO: Replace src with your publicly hosted Polyphonic logo URL -->
-  <div class="logo-overlay">
-    <img src="https://static.wixstatic.com/shapes/9ce945_f31f554067034f6ab6211ecad57affbb.svg" alt="Polyphonic" onerror="this.parentElement.innerHTML='<strong style=font-size:18px;color:#333>Polyphonic</strong>'" />
+  <div class="map-tilt">
+    <div id="map"></div>
   </div>
 
   <script>
     // ============================================================
-    // CONFIGURATION - Edit this array to add/remove locations
+    // CONFIGURATION
     // ============================================================
+    const LOGO_ICON_URL = "https://static.wixstatic.com/shapes/9ce945_f31f554067034f6ab6211ecad57affbb.svg";
+
+    // ============================================================
+    // MAP STYLE - Change this value to switch themes
+    // Options: "default", "light", "minimal", "grayscale",
+    //          "muted", "warm", "watercolor", "teal", "toner"
+    // ============================================================
+    const MAP_STYLE = "default";
+
+    const MAP_STYLES = {
+      // 1. Default - colorful with green land & blue water (like AtList selected)
+      default: {
+        url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+        options: { maxZoom: 19 }
+      },
+      // 2. Light - very faint roads on white background
+      light: {
+        url: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>',
+        options: { maxZoom: 20, subdomains: 'abcd' }
+      },
+      // 3. Minimal - clean with subtle labels (Voyager)
+      minimal: {
+        url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>',
+        options: { maxZoom: 20, subdomains: 'abcd' }
+      },
+      // 4. Grayscale - dark gray tones, no color
+      grayscale: {
+        url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>',
+        options: { maxZoom: 20, subdomains: 'abcd' }
+      },
+      // 5. Muted - light gray, no labels, very clean
+      muted: {
+        url: 'https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png',
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>',
+        options: { maxZoom: 20, subdomains: 'abcd' }
+      },
+      // 6. Warm - soft beige/tan tones
+      warm: {
+        url: 'https://tiles.stadiamaps.com/tiles/stamen_terrain/{z}/{x}/{y}{r}.png',
+        attribution: '&copy; <a href="https://stadiamaps.com/">Stadia</a> &copy; <a href="https://stamen.com/">Stamen</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+        options: { maxZoom: 18 }
+      },
+      // 7. Watercolor - artistic painted look
+      watercolor: {
+        url: 'https://tiles.stadiamaps.com/tiles/stamen_watercolor/{z}/{x}/{y}.jpg',
+        attribution: '&copy; <a href="https://stadiamaps.com/">Stadia</a> &copy; <a href="https://stamen.com/">Stamen</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+        options: { maxZoom: 16 }
+      },
+      // 8. Toner - high-contrast black & white (Stamen Toner)
+      toner: {
+        url: 'https://tiles.stadiamaps.com/tiles/stamen_toner/{z}/{x}/{y}{r}.png',
+        attribution: '&copy; <a href="https://stadiamaps.com/">Stadia</a> &copy; <a href="https://stamen.com/">Stamen</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+        options: { maxZoom: 20 }
+      },
+      // 9. Teal - blue/green water-focused
+      teal: {
+        url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>',
+        options: { maxZoom: 20, subdomains: 'abcd' },
+        css: 'filter: hue-rotate(160deg) saturate(1.4);'
+      }
+    };
+
     const locations = [
       {
         name: "Liberty Park",
         lat: 40.74948113077829,
         lng: -111.875514818678,
-        // Replace with a publicly hosted image URL for this location
         image: "https://static.wixstatic.com/media/9ce945_0353965da9e04fa7817530546ce86ddc~mv2.png",
-        description: "Salt Lake City, UT"
+        address: "600 Harvey Milk Blvd, Salt Lake City, UT 84105, USA"
       }
       // Add more locations as your studio rolls out:
       // {
@@ -87,7 +187,7 @@
       //   lat: 0.0,
       //   lng: 0.0,
       //   image: "https://...",
-      //   description: "City, State"
+      //   address: "123 Main St, City, State ZIP"
       // }
     ];
 
@@ -95,7 +195,6 @@
     // MAP SETUP
     // ============================================================
 
-    // Center on first location, or default to SLC
     const center = locations.length > 0
       ? [locations[0].lat, locations[0].lng]
       : [40.7608, -111.891];
@@ -107,42 +206,46 @@
       scrollWheelZoom: true
     });
 
-    // OpenStreetMap tiles (100% free, no API key)
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-      maxZoom: 19
+    // Apply selected map style
+    const style = MAP_STYLES[MAP_STYLE] || MAP_STYLES.default;
+    L.tileLayer(style.url, {
+      attribution: style.attribution,
+      ...style.options
     }).addTo(map);
 
-    // Custom marker icon (warm accent color)
-    const markerIcon = L.divIcon({
-      className: 'custom-marker',
-      html: `<svg width="32" height="44" viewBox="0 0 32 44" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M16 0C7.164 0 0 7.164 0 16c0 12 16 28 16 28s16-16 16-28C32 7.164 24.836 0 16 0z" fill="#E74C3C"/>
-        <circle cx="16" cy="16" r="8" fill="white"/>
-        <circle cx="16" cy="16" r="5" fill="#E74C3C"/>
-      </svg>`,
-      iconSize: [32, 44],
-      iconAnchor: [16, 44],
-      popupAnchor: [0, -44]
+    // Apply CSS filter if the style has one (e.g. teal)
+    if (style.css) {
+      document.querySelector('.leaflet-tile-pane').style.cssText = style.css;
+    }
+
+    // Polyphonic logo as map marker
+    const logoIcon = L.divIcon({
+      className: 'polyphonic-marker',
+      html: `<div class="marker-wrapper"><img src="${LOGO_ICON_URL}" alt="Polyphonic" /></div>`,
+      iconSize: [40, 40],
+      iconAnchor: [20, 20],
+      popupAnchor: [0, -24]
     });
 
     // Add markers for each location
     locations.forEach(loc => {
-      const imageHtml = loc.image && !loc.image.includes('YOUR_')
-        ? `<img src="${loc.image}" alt="${loc.name}" />`
+      const imageHtml = loc.image
+        ? `<img class="popup-image" src="${loc.image}" alt="${loc.name}" />`
         : '';
 
       const popupContent = `
         <div class="location-popup">
           ${imageHtml}
-          <h3>${loc.name}</h3>
-          <p>${loc.description}</p>
+          <div class="popup-info">
+            <h3>${loc.name}</h3>
+            <p>${loc.address || ''}</p>
+          </div>
         </div>
       `;
 
-      L.marker([loc.lat, loc.lng], { icon: markerIcon })
+      L.marker([loc.lat, loc.lng], { icon: logoIcon })
         .addTo(map)
-        .bindPopup(popupContent, { maxWidth: 220 });
+        .bindPopup(popupContent, { maxWidth: 280, closeButton: true });
     });
 
     // If multiple locations, fit bounds to show all
